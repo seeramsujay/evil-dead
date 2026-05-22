@@ -1,0 +1,26 @@
+[
+  {
+    "datetime": "2026-05-22 10:00:11",
+    "source": "MFT",
+    "source_long": "MFT Record",
+    "message": "File: C:\\Windows\\System32\\services.exe was created"
+  },
+  {
+    "datetime": "2026-05-22 10:00:12",
+    "source": "MFT",
+    "source_long": "MFT Record",
+    "message": "File: C:\\Windows\\System32\\lsass.exe was created"
+  },
+  {
+    "datetime": "2026-05-22 10:00:15",
+    "source": "MFT",
+    "source_long": "MFT Record",
+    "message": "File: C:\\Windows\\System32\\svchost.exe was created"
+  },
+  {
+    "datetime": "2026-05-22 12:15:30",
+    "source": "MFT",
+    "source_long": "MFT Record",
+    "message": "File: C:\\Windows\\System32\\svchost.exe was modified"
+  }
+]

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Aegis — Autonomous DFIR Threat Hunting Console</title>
+    <meta name="description" content="Project Aegis: Autonomous DFIR agent for the SANS Find Evil! Hackathon. Deterministic MFT diffing and BFS lateral movement traversal.">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ── Header ─────────────────────────────────────────────────────────────── -->
+    <header>
+        <div class="logo-container">
+            <svg class="shield-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <div class="logo-text">
+                <h1>PROJECT AEGIS</h1>
+                <p>SANS Find Evil! Hackathon · Autonomous DFIR Engine</p>
+            </div>
+        </div>
+
+        <!-- Step progress pips -->
+        <div class="step-indicator" id="step-indicator" aria-label="Simulation steps">
+            <div class="step-pip" id="pip-1" title="Step 1"></div>
+            <div class="step-pip" id="pip-2" title="Step 2"></div>
+            <div class="step-pip" id="pip-3" title="Step 3"></div>
+            <div class="step-pip" id="pip-4" title="Step 4"></div>
+            <div class="step-pip" id="pip-5" title="Step 5"></div>
+            <div class="step-pip" id="pip-6" title="Step 6 — TTL Limit"></div>
+        </div>
+
+        <div class="status-badge" id="system-status" role="status" aria-live="polite">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="status-text">SIFT Workstation: Connected</span>
+        </div>
+    </header>
+
+    <!-- ── Main Grid ────────────────────────────────────────────────────────────── -->
+    <main class="dashboard-grid">
+
+        <!-- Left Panel: Collection & Control -->
+        <section class="panel" aria-label="Forensic target setup">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    Forensic Target Setup
+                </h2>
+            </div>
+            <div class="panel-body">
+
+                <div class="control-group">
+                    <label class="control-label" for="mem-dump">Volatility Memory Dump</label>
+                    <select class="input-select" id="mem-dump">
+                        <option value="nist_mem_compromise.raw">nist_mem_compromise.raw (512 MB)</option>
+                        <option value="win10_active_malware.dmp">win10_active_malware.dmp (1 GB)</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="disk-img">Plaso Disk Image</label>
+                    <select class="input-select" id="disk-img">
+                        <option value="win10_c_drive.img">win10_c_drive.img (MFT Timeline)</option>
+                        <option value="ad_domain_controller.vmdk">ad_domain_controller.vmdk</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="patient-zero">Patient Zero Host</label>
+                    <input type="text" class="input-text" id="patient-zero" value="host0" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="control-group">
+                    <label class="control-label" for="comp-time">Earliest Compromise Time</label>
+                    <input type="text" class="input-text" id="comp-time" value="2026-05-22 12:00:00" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="control-group" style="margin-top: 1.5rem;">
+                    <button class="action-btn" id="run-btn" aria-label="Deploy autonomous agent">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Deploy Agent
+                    </button>
+                    <button class="action-btn btn-secondary" id="step-btn" aria-label="Advance one simulation step">
+                        ▶ Step-By-Step
+                    </button>
+                    <button class="action-btn btn-secondary" id="reset-btn" aria-label="Reset simulation">
+                        ↺ Reset System
+                    </button>
+                </div>
+
+                <!-- TTL Circuit Breaker HUD -->
+                <div class="circuit-breaker-hud" id="circuit-breaker-panel" aria-label="TTL circuit breaker status">
+                    <div class="hud-row">
+                        <span class="hud-title">TTL CIRCUIT BREAKER</span>
+                        <span class="hud-status" id="cb-status" style="color:var(--success);background:var(--success-glow);">ARMED</span>
+                    </div>
+                    <div class="hud-row" style="font-size:0.72rem;">
+                        <span style="color:var(--text-muted);">Execution Steps</span>
+                        <span id="step-counter" style="color:var(--text-highlight);font-weight:700;font-family:'JetBrains Mono',monospace;">0 / 5</span>
+                    </div>
+                    <div class="hud-meter-container" role="progressbar" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0" aria-label="Step progress">
+                        <div class="hud-meter-bar" id="cb-meter"></div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Middle Column: BFS Graph + Anomaly Table -->
+        <section class="middle-column" aria-label="Forensic analysis panels">
+
+            <div class="panel graph-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
+                            <circle cx="18" cy="19" r="3"/>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                        </svg>
+                        Forensic Flood-Fill Graph — BFS Lateral Movement
+                    </h2>
+                    <span style="font-size:0.72rem;color:var(--text-muted);">
+                        Compromised: <span id="comp-count" style="color:var(--warning);font-weight:700;">—</span>
+                        &nbsp;|&nbsp;
+                        Analyzed: <span id="analyzed-count" style="color:var(--success);font-weight:700;">—</span>
+                    </span>
+                </div>
+                <div class="panel-body" style="padding:0;position:relative;">
+                    <svg class="svg-canvas" id="graph-svg" role="img" aria-label="Lateral movement graph"></svg>
+                </div>
+            </div>
+
+            <div class="panel table-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                        Process Discrepancies — Memory vs MFT Disk
+                    </h2>
+                    <span id="anomaly-count" style="font-size:0.72rem;color:var(--text-muted);">0 findings</span>
+                </div>
+                <div class="panel-body" style="padding:0;">
+                    <div class="table-container">
+                        <table aria-label="Process discrepancy findings">
+                            <thead>
+                                <tr>
+                                    <th scope="col">PID</th>
+                                    <th scope="col">Image Name</th>
+                                    <th scope="col">Severity</th>
+                                    <th scope="col">Deterministic Finding</th>
+                                </tr>
+                            </thead>
+                            <tbody id="anomaly-rows">
+                                <tr id="anomaly-empty-row">
+                                    <td colspan="4" style="text-align:center;color:var(--text-muted);padding:1.75rem;">
+                                        No forensic target scanned yet — deploy agent to begin analysis.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Right Panel: Terminal -->
+        <section class="panel terminal-panel" aria-label="Aegis CLI normalization log">
+            <div class="panel-header">
+                <h2 class="panel-title">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" aria-hidden="true">
+                        <polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/>
+                    </svg>
+                    Aegis MCP State &amp; CLI Normalization Log
+                </h2>
+            </div>
+            <div class="panel-body" style="padding:0;">
+                <div class="terminal-console" id="terminal-log" aria-live="polite" aria-label="Terminal output">
+                    <div class="term-line">
+                        <span class="term-prompt">aegis::root#</span>
+                        <span class="term-cmd">systemctl status aegis-mcp-server</span>
+                    </div>
+                    <div class="term-line">
+                        <span class="term-success">● Aegis FastMCP Server — active (running) since 2026-05-22</span>
+                    </div>
+                    <div class="term-line">
+                        <span class="term-info">&nbsp; Listening on 0.0.0.0:8000 · PID 1337 · shell=False enforcement active</span>
+                    </div>
+                    <div class="term-line" id="terminal-cursor-line">
+                        <span class="term-prompt">aegis::root#</span>
+                        <span class="term-cmd term-cursor" id="cursor-span"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ── Node Tooltip ─────────────────────────────────────────────────────────── -->
+    <div class="node-tooltip" id="node-tooltip" role="tooltip" aria-hidden="true">
+        <div class="tooltip-host" id="tt-host"></div>
+        <div class="tooltip-state" id="tt-state"></div>
+    </div>
+
+    <!-- ── Executive Report Modal ──────────────────────────────────────────────── -->
+    <div class="modal-overlay" id="report-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title-text">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modal-title-text">Circuit Breaker Triggered — Executive DFIR Report</h3>
+                <button class="close-btn" id="close-modal" aria-label="Close report">&times;</button>
+            </div>
+            <div class="modal-body">
+                <pre class="modal-report-pre" id="modal-report-text"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

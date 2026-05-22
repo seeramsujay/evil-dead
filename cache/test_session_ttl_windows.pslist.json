@@ -1,0 +1,56 @@
+[
+  {
+    "PID": 4,
+    "PPID": 0,
+    "ImageFileName": "System",
+    "CreateTime": "2026-05-22 10:00:00.000000"
+  },
+  {
+    "PID": 120,
+    "PPID": 4,
+    "ImageFileName": "smss.exe",
+    "CreateTime": "2026-05-22 10:00:05.000000"
+  },
+  {
+    "PID": 524,
+    "PPID": 120,
+    "ImageFileName": "wininit.exe",
+    "CreateTime": "2026-05-22 10:00:10.000000"
+  },
+  {
+    "PID": 600,
+    "PPID": 524,
+    "ImageFileName": "services.exe",
+    "CreateTime": "2026-05-22 10:00:11.000000"
+  },
+  {
+    "PID": 612,
+    "PPID": 524,
+    "ImageFileName": "lsass.exe",
+    "CreateTime": "2026-05-22 10:00:12.000000"
+  },
+  {
+    "PID": 1024,
+    "PPID": 600,
+    "ImageFileName": "svchost.exe",
+    "CreateTime": "2026-05-22 10:00:15.000000"
+  },
+  {
+    "PID": 2048,
+    "PPID": 600,
+    "ImageFileName": "svchost.exe",
+    "CreateTime": "2026-05-22 12:15:30.000000"
+  },
+  {
+    "PID": 4321,
+    "PPID": 600,
+    "ImageFileName": "svchost.exe",
+    "CreateTime": "2026-05-22 14:32:00.000000"
+  },
+  {
+    "PID": 9999,
+    "PPID": 1024,
+    "ImageFileName": "backdoor.exe",
+    "CreateTime": "2026-05-22 14:35:00.000000"
+  }
+]
