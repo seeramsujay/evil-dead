@@ -1,36 +1,31 @@
-// Simulation State Database
+// Project Aegis Dashboard Core Simulation Engine
+const MAX_STEPS = 5;
+
+// Compact Simulation Database
 const MOCK_STEPS_DATA = [
     {
-        // Step 1: Collection on host0
         title: "Forensic Collection: host0",
         logs: [
-            { type: "prompt", text: "aegis::agent# python3 -c \"from aegis.mcp_server import run_volatility\"" },
-            { type: "cmd", text: "volatility -f nist_mem_compromise.raw windows.pslist" },
-            { type: "warn", text: "[INTEGRITY] Executing SIFT binary via subprocess.run(shell=False) with strict array parameters." },
-            { type: "info", text: "[JC NORMALIZATION] Normalizing volatility raw text output through Python jc 'table' parsing..." },
+            { type: "prompt", text: "deploy_aegis_agent --patient-zero=host0 --ttl=5" },
+            { type: "warn", text: "[INTEGRITY] Executing SIFT volatility binary via subprocess.run(shell=False) with strict array parameters." },
+            { type: "info", text: "[JC NORMALIZATION] Normalizing raw text output through Python jc table parser..." },
             { type: "success", text: "[CACHE] Processed 254 active memory processes. Cached to /cache/default_windows.pslist.json" },
-            { type: "cmd", text: "log2timeline.py --status_view none /cache/default_timeline.plaso win10_c_drive.img" },
-            { type: "warn", text: "[INTEGRITY] Executing Plaso/log2timeline via subprocess.run(shell=False)." },
-            { type: "info", text: "[JC NORMALIZATION] Normalizing Plaso CSV outputs through jc 'csv' parser." },
+            { type: "warn", text: "[INTEGRITY] Executing SIFT log2timeline binary via subprocess.run(shell=False)." },
+            { type: "info", text: "[JC NORMALIZATION] Normalizing Plaso CSV timeline outputs..." },
             { type: "success", text: "[CACHE] Processed 425,122 MFT timeline events. Cached to /cache/default_mft.json" }
         ],
         anomalies: [],
-        nodes: [
-            { id: "host0", label: "host0 (P0)", x: 200, y: 150, status: "patient-zero" }
-        ],
+        nodes: [{ id: "host0", label: "host0 (P0)", x: 200, y: 110, status: "patient-zero" }],
         edges: []
     },
     {
-        // Step 2: Anomaly analysis on host0
         title: "Anomaly Analysis: host0",
         logs: [
-            { type: "prompt", text: "aegis::agent# python3 -c \"from aegis.diffing import run_discrepancy_diff\"" },
-            { type: "cmd", text: "analyze_discrepancies --session=default" },
-            { type: "info", text: "[DETERMINISTIC DIFF] Cross-referencing Volatility memory processes against Plaso MFT records." },
-            { type: "danger", text: "[ANOMALY] PID 120 (smss.exe): Running process lacks disk MFT record! (Memory-only rootkit payload)" },
-            { type: "danger", text: "[ANOMALY] PID 524 (wininit.exe): Running process lacks disk MFT record! (Memory-only execution)" },
-            { type: "danger", text: "[ANOMALY] PID 9999 (backdoor.exe): Running process lacks disk MFT record! (Deleted binary/Reflective load)" },
-            { type: "prompt", text: "aegis::agent# cat /var/log/auth.csv" },
+            { type: "prompt", text: "analyze_discrepancies --session=default" },
+            { type: "info", text: "[DETERMINISTIC DIFF] Cross-referencing memory processes against disk MFT records..." },
+            { type: "danger", text: "[ANOMALY] PID 120 (smss.exe): Running process lacks disk MFT record! (Potential memory-only rootkit)" },
+            { type: "danger", text: "[ANOMALY] PID 524 (wininit.exe): Running process lacks disk MFT record!" },
+            { type: "danger", text: "[ANOMALY] PID 9999 (backdoor.exe): Running process lacks disk MFT record!" },
             { type: "info", text: "[BFS TRAVERSAL] Tracing successful lateral credentials logins from host0..." },
             { type: "success", text: "[LATERAL] Found RDP connection: host0 -> host1 (as admin)" },
             { type: "success", text: "[LATERAL] Found SMB connection: host0 -> host2 (as admin)" }
@@ -38,12 +33,12 @@ const MOCK_STEPS_DATA = [
         anomalies: [
             { pid: 120, name: "smss.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only rootkit payload." },
             { pid: 524, name: "wininit.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only injection." },
-            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Deleted executable run from reflective memory space." }
+            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Reflective DLL injection." }
         ],
         nodes: [
-            { id: "host0", label: "host0 (P0)", x: 200, y: 150, status: "patient-zero" },
-            { id: "host1", label: "host1", x: 120, y: 260, status: "compromised" },
-            { id: "host2", label: "host2", x: 280, y: 260, status: "compromised" }
+            { id: "host0", label: "host0 (P0)", x: 200, y: 110, status: "patient-zero" },
+            { id: "host1", label: "host1", x: 100, y: 180, status: "compromised" },
+            { id: "host2", label: "host2", x: 300, y: 180, status: "compromised" }
         ],
         edges: [
             { from: "host0", to: "host1", status: "compromised-edge" },
@@ -51,25 +46,22 @@ const MOCK_STEPS_DATA = [
         ]
     },
     {
-        // Step 3: Collection on host1
         title: "Forensic Collection: host1",
         logs: [
-            { type: "prompt", text: "aegis::agent# deploying remote forensic collector to host1..." },
-            { type: "cmd", text: "volatility -f host1_mem.raw windows.pslist" },
-            { type: "warn", text: "[INTEGRITY] Executing SIFT binary securely." },
-            { type: "success", text: "[CACHE] Processed 189 active processes on host1. Cached locally." },
-            { type: "cmd", text: "log2timeline.py --status_view none /cache/host1_mft.plaso host1_disk.img" },
+            { type: "prompt", text: "deploy_collector --target=host1" },
+            { type: "info", text: "Deploying remote forensic collector to host1..." },
+            { type: "success", text: "[CACHE] Processed 189 active processes on host1." },
             { type: "success", text: "[CACHE] Processed 312,987 MFT events on host1." }
         ],
         anomalies: [
             { pid: 120, name: "smss.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only rootkit payload." },
             { pid: 524, name: "wininit.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only injection." },
-            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Deleted executable run from reflective memory space." }
+            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Reflective DLL injection." }
         ],
         nodes: [
-            { id: "host0", label: "host0 (P0)", x: 200, y: 150, status: "patient-zero" },
-            { id: "host1", label: "host1", x: 120, y: 260, status: "analyzed" },
-            { id: "host2", label: "host2", x: 280, y: 260, status: "compromised" }
+            { id: "host0", label: "host0 (P0)", x: 200, y: 110, status: "patient-zero" },
+            { id: "host1", label: "host1", x: 100, y: 180, status: "analyzed" },
+            { id: "host2", label: "host2", x: 300, y: 180, status: "compromised" }
         ],
         edges: [
             { from: "host0", to: "host1", status: "compromised-edge" },
@@ -77,28 +69,27 @@ const MOCK_STEPS_DATA = [
         ]
     },
     {
-        // Step 4: Anomaly analysis on host1
         title: "Anomaly Analysis: host1",
         logs: [
-            { type: "cmd", text: "analyze_discrepancies --session=host1" },
+            { type: "prompt", text: "analyze_discrepancies --session=host1" },
             { type: "info", text: "[DETERMINISTIC DIFF] Cross-referencing Volatility memory processes on host1. All processes valid on disk." },
             { type: "info", text: "[BFS TRAVERSAL] Tracing logins from host1..." },
-            { type: "success", text: "[LATERAL] Found SMB connection: host1 -> host3 (via credentials reuse)" },
-            { type: "success", text: "[LATERAL] Found RDP connection: host1 -> host4 (via credentials reuse)" },
-            { type: "success", text: "[LATERAL] Found WinRM connection: host1 -> host5 (via credentials reuse)" }
+            { type: "success", text: "[LATERAL] Found SMB connection: host1 -> host3" },
+            { type: "success", text: "[LATERAL] Found RDP connection: host1 -> host4" },
+            { type: "success", text: "[LATERAL] Found WinRM connection: host1 -> host5" }
         ],
         anomalies: [
             { pid: 120, name: "smss.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only rootkit payload." },
             { pid: 524, name: "wininit.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only injection." },
-            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Deleted executable run from reflective memory space." }
+            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Reflective DLL injection." }
         ],
         nodes: [
-            { id: "host0", label: "host0 (P0)", x: 200, y: 150, status: "patient-zero" },
-            { id: "host1", label: "host1", x: 120, y: 260, status: "analyzed" },
-            { id: "host2", label: "host2", x: 280, y: 260, status: "compromised" },
-            { id: "host3", label: "host3", x: 50, y: 350, status: "compromised" },
-            { id: "host4", label: "host4", x: 120, y: 370, status: "compromised" },
-            { id: "host5", label: "host5", x: 190, y: 350, status: "compromised" }
+            { id: "host0", label: "host0 (P0)", x: 200, y: 110, status: "patient-zero" },
+            { id: "host1", label: "host1", x: 100, y: 180, status: "analyzed" },
+            { id: "host2", label: "host2", x: 300, y: 180, status: "compromised" },
+            { id: "host3", label: "host3", x: 40, y: 250, status: "compromised" },
+            { id: "host4", label: "host4", x: 100, y: 260, status: "compromised" },
+            { id: "host5", label: "host5", x: 160, y: 250, status: "compromised" }
         ],
         edges: [
             { from: "host0", to: "host1", status: "compromised-edge" },
@@ -109,27 +100,24 @@ const MOCK_STEPS_DATA = [
         ]
     },
     {
-        // Step 5: Collection on host2
         title: "Forensic Collection: host2",
         logs: [
-            { type: "prompt", text: "aegis::agent# deploying remote forensic collector to host2..." },
-            { type: "cmd", text: "volatility -f host2_mem.raw windows.pslist" },
-            { type: "success", text: "[CACHE] Processed 195 active processes on host2. Cached locally." },
-            { type: "cmd", text: "log2timeline.py --status_view none /cache/host2_mft.plaso host2_disk.img" },
+            { type: "prompt", text: "deploy_collector --target=host2" },
+            { type: "success", text: "[CACHE] Processed 195 active processes on host2." },
             { type: "success", text: "[CACHE] Processed 294,845 MFT events on host2." }
         ],
         anomalies: [
             { pid: 120, name: "smss.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only rootkit payload." },
             { pid: 524, name: "wininit.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only injection." },
-            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Deleted executable run from reflective memory space." }
+            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Reflective DLL injection." }
         ],
         nodes: [
-            { id: "host0", label: "host0 (P0)", x: 200, y: 150, status: "patient-zero" },
-            { id: "host1", label: "host1", x: 120, y: 260, status: "analyzed" },
-            { id: "host2", label: "host2", x: 280, y: 260, status: "analyzed" },
-            { id: "host3", label: "host3", x: 50, y: 350, status: "compromised" },
-            { id: "host4", label: "host4", x: 120, y: 370, status: "compromised" },
-            { id: "host5", label: "host5", x: 190, y: 350, status: "compromised" }
+            { id: "host0", label: "host0 (P0)", x: 200, y: 110, status: "patient-zero" },
+            { id: "host1", label: "host1", x: 100, y: 180, status: "analyzed" },
+            { id: "host2", label: "host2", x: 300, y: 180, status: "analyzed" },
+            { id: "host3", label: "host3", x: 40, y: 250, status: "compromised" },
+            { id: "host4", label: "host4", x: 100, y: 260, status: "compromised" },
+            { id: "host5", label: "host5", x: 160, y: 250, status: "compromised" }
         ],
         edges: [
             { from: "host0", to: "host1", status: "compromised-edge" },
@@ -140,31 +128,30 @@ const MOCK_STEPS_DATA = [
         ]
     },
     {
-        // Step 6: Anomaly analysis on host2 -> Hits Circuit Breaker!
         title: "TTL Circuit Breaker Triggered",
         logs: [
-            { type: "cmd", text: "analyze_discrepancies --session=host2" },
+            { type: "prompt", text: "analyze_discrepancies --session=host2" },
             { type: "info", text: "[BFS TRAVERSAL] Tracing logins from host2..." },
             { type: "success", text: "[LATERAL] Found WinRM connection: host2 -> host6" },
             { type: "success", text: "[LATERAL] Found RDP connection: host2 -> host7" },
-            { type: "danger", text: "[CIRCUIT BREAKER] steps count = 6, exceeding maximum loop limit MAX_STEPS = 5!" },
-            { type: "danger", text: "[CIRCUIT BREAKER] WARNING: Multi-agent infinite analysis loop detected (unscanned targets: host3, host4, host5, host6, host7)." },
-            { type: "danger", text: "[CIRCUIT BREAKER] Halting execution immediately. Routing state flow to compile_report terminal node." }
+            { type: "danger", text: "[CIRCUIT BREAKER] Step count = 6, exceeding maximum loop limit MAX_STEPS = 5!" },
+            { type: "danger", text: "[CIRCUIT BREAKER] WARNING: Multi-agent loop detected. Unscanned targets remaining." },
+            { type: "danger", text: "[CIRCUIT BREAKER] Halting execution immediately. Generating final report." }
         ],
         anomalies: [
             { pid: 120, name: "smss.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only rootkit payload." },
             { pid: 524, name: "wininit.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Potential memory-only injection." },
-            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Deleted executable run from reflective memory space." }
+            { pid: 9999, name: "backdoor.exe", severity: "CRITICAL", finding: "Process running in memory but has no corresponding MFT record on disk. Reflective DLL injection." }
         ],
         nodes: [
-            { id: "host0", label: "host0 (P0)", x: 200, y: 150, status: "patient-zero" },
-            { id: "host1", label: "host1", x: 120, y: 260, status: "analyzed" },
-            { id: "host2", label: "host2", x: 280, y: 260, status: "analyzed" },
-            { id: "host3", label: "host3", x: 50, y: 350, status: "compromised" },
-            { id: "host4", label: "host4", x: 120, y: 370, status: "compromised" },
-            { id: "host5", label: "host5", x: 190, y: 350, status: "compromised" },
-            { id: "host6", label: "host6", x: 250, y: 350, status: "compromised" },
-            { id: "host7", label: "host7", x: 330, y: 350, status: "compromised" }
+            { id: "host0", label: "host0 (P0)", x: 200, y: 110, status: "patient-zero" },
+            { id: "host1", label: "host1", x: 100, y: 180, status: "analyzed" },
+            { id: "host2", label: "host2", x: 300, y: 180, status: "analyzed" },
+            { id: "host3", label: "host3", x: 40, y: 250, status: "compromised" },
+            { id: "host4", label: "host4", x: 100, y: 260, status: "compromised" },
+            { id: "host5", label: "host5", x: 160, y: 250, status: "compromised" },
+            { id: "host6", label: "host6", x: 240, y: 250, status: "compromised" },
+            { id: "host7", label: "host7", x: 300, y: 260, status: "compromised" }
         ],
         edges: [
             { from: "host0", to: "host1", status: "compromised-edge" },
@@ -178,8 +165,7 @@ const MOCK_STEPS_DATA = [
     }
 ];
 
-const EXECUTIVE_REPORT_MD = `
-# PROJECT AEGIS EXECUTIVE DFIR REPORT
+const EXECUTIVE_REPORT_MD = `# PROJECT AEGIS EXECUTIVE DFIR REPORT
 =====================================
 Session ID: aegis_session_sans_2026
 Total Steps Taken: 6
@@ -197,7 +183,7 @@ Identified 3 CRITICAL process discrepancies:
      Finding: Process running in memory but has no corresponding MFT record on disk. Potential memory-only payload injection.
   
   3. [CRITICAL] PID 9999 (backdoor.exe):
-     Finding: Process running in memory but has no corresponding MFT record on disk. Deleted executable run from reflective memory space.
+     Finding: Process running in memory but has no corresponding MFT record on disk. Reflective DLL injection.
 
 ## 2. LATERAL MOVEMENT BLAST RADIUS MAP (BFS FLOOD-FILL)
 --------------------------------------------------------
@@ -217,10 +203,9 @@ Compromised Host List: host0, host1, host2, host3, host4, host5, host6, host7
 > [!WARNING]
 > Aegis execution was stopped by the Time-To-Live (TTL) Circuit Breaker to prevent an infinite analysis loop. 
 > There were still 5 unanalyzed compromised hosts (host3, host4, host5, host6, host7) in the queue. 
-> Final report compilation forced.
-`;
+> Final report compilation forced.`;
 
-// DOM Elements
+// DOM Selectors
 const runBtn = document.getElementById("run-btn");
 const stepBtn = document.getElementById("step-btn");
 const resetBtn = document.getElementById("reset-btn");
@@ -228,100 +213,135 @@ const stepCounter = document.getElementById("step-counter");
 const cbMeter = document.getElementById("cb-meter");
 const cbStatus = document.getElementById("cb-status");
 const compCount = document.getElementById("comp-count");
+const analyzedCount = document.getElementById("analyzed-count");
+const anomalyCount = document.getElementById("anomaly-count");
 const anomalyRows = document.getElementById("anomaly-rows");
 const terminalLog = document.getElementById("terminal-log");
+const cursorSpan = document.getElementById("cursor-span");
+const terminalCursorLine = document.getElementById("terminal-cursor-line");
 const svgCanvas = document.getElementById("graph-svg");
 const reportModal = document.getElementById("report-modal");
 const modalReportText = document.getElementById("modal-report-text");
 const closeModal = document.getElementById("close-modal");
+const tooltip = document.getElementById("node-tooltip");
+const ttHost = document.getElementById("tt-host");
+const ttState = document.getElementById("tt-state");
 
-// State variables
 let currentStep = -1;
 let autoSimulationInterval = null;
 
-// Initialize SVG Graph dimensions
-function getCanvasSize() {
+// Dynamic SVG scaling helper
+function getScaledCoords(x, y) {
+    const w = svgCanvas.clientWidth || 400;
+    const h = svgCanvas.clientHeight || 300;
+    // Base design coords: w=400, h=300
     return {
-        width: svgCanvas.clientWidth || 400,
-        height: svgCanvas.clientHeight || 300
+        x: (x / 400) * w,
+        y: (y / 300) * h
     };
 }
 
-// Render Graph using SVG
 function renderGraph(nodes, edges) {
-    // Clear canvas
     svgCanvas.innerHTML = "";
-    
-    // Create markers for arrows
+    if (nodes.length === 0) {
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("x", "50%");
+        text.setAttribute("y", "50%");
+        text.setAttribute("class", "svg-empty-text");
+        text.textContent = "Deploy Aegis agent to map lateral propagation.";
+        svgCanvas.appendChild(text);
+        return;
+    }
+
     const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     const marker = document.createElementNS("http://www.w3.org/2000/svg", "marker");
     marker.setAttribute("id", "arrow");
     marker.setAttribute("viewBox", "0 0 10 10");
     marker.setAttribute("refX", "22");
     marker.setAttribute("refY", "5");
-    marker.setAttribute("markerWidth", "6");
-    marker.setAttribute("markerHeight", "6");
+    marker.setAttribute("markerWidth", "5");
+    marker.setAttribute("markerHeight", "5");
     marker.setAttribute("orient", "auto-start-reverse");
     
-    const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    path.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
-    path.setAttribute("fill", "rgba(0, 240, 255, 0.4)");
-    marker.appendChild(path);
+    const markerPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    markerPath.setAttribute("d", "M 0 0 L 10 5 L 0 10 z");
+    markerPath.setAttribute("fill", "rgba(0, 240, 255, 0.4)");
+    marker.appendChild(markerPath);
     defs.appendChild(marker);
     svgCanvas.appendChild(defs);
 
-    // Render edges
+    // Scaled coords map
+    const coords = {};
+    nodes.forEach(n => {
+        coords[n.id] = getScaledCoords(n.x, n.y);
+    });
+
     edges.forEach(edge => {
-        const fromNode = nodes.find(n => n.id === edge.from);
-        const toNode = nodes.find(n => n.id === edge.to);
-        if (fromNode && toNode) {
+        const from = coords[edge.from];
+        const to = coords[edge.to];
+        if (from && to) {
             const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-            line.setAttribute("x1", fromNode.x);
-            line.setAttribute("y1", fromNode.y);
-            line.setAttribute("x2", toNode.x);
-            line.setAttribute("y2", toNode.y);
+            line.setAttribute("x1", from.x);
+            line.setAttribute("y1", from.y);
+            line.setAttribute("x2", to.x);
+            line.setAttribute("y2", to.y);
             line.setAttribute("class", `link ${edge.status}`);
             line.setAttribute("marker-end", "url(#arrow)");
             svgCanvas.appendChild(line);
         }
     });
 
-    // Render nodes
     nodes.forEach(node => {
+        const c = coords[node.id];
         const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
         group.setAttribute("class", `node ${node.status}`);
-        
+
         const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-        circle.setAttribute("cx", node.x);
-        circle.setAttribute("cy", node.y);
-        circle.setAttribute("r", "16");
-        
-        // Dynamic node glowing colors
-        if (node.status === "patient-zero") {
-            circle.setAttribute("filter", "drop-shadow(0 0 6px var(--danger))");
-        } else if (node.status === "compromised") {
-            circle.setAttribute("filter", "drop-shadow(0 0 5px var(--warning))");
-        } else if (node.status === "analyzed") {
-            circle.setAttribute("filter", "drop-shadow(0 0 5px var(--success))");
-        }
+        circle.setAttribute("cx", c.x);
+        circle.setAttribute("cy", c.y);
+        circle.setAttribute("r", "15");
 
         const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        text.setAttribute("x", node.x);
-        text.setAttribute("y", node.y + 4);
+        text.setAttribute("x", c.x);
+        text.setAttribute("y", c.y + 4);
         text.textContent = node.id;
-        
+
         group.appendChild(circle);
         group.appendChild(text);
-        
-        // Node hover metadata tooltip (simulated)
+
+        // Tooltip hover handlers
+        group.addEventListener("mousemove", (e) => {
+            tooltip.style.left = `${e.clientX + 15}px`;
+            tooltip.style.top = `${e.clientY + 15}px`;
+        });
+
+        group.addEventListener("mouseenter", () => {
+            ttHost.textContent = `Host: ${node.id}`;
+            let statusText = "COMPROMISED";
+            let statusClass = "warn";
+            if (node.status === "patient-zero") {
+                statusText = "PATIENT ZERO (BREACHED)";
+                statusClass = "crit";
+            } else if (node.status === "analyzed") {
+                statusText = "COLLECTED & CLEAN";
+                statusClass = "ok";
+            }
+            ttState.innerHTML = `Status: <span class="${statusClass}">${statusText}</span>`;
+            tooltip.classList.add("visible");
+        });
+
+        group.addEventListener("mouseleave", () => {
+            tooltip.classList.remove("visible");
+        });
+
         group.addEventListener("click", () => {
-            appendTerminalLine("info", `Click on node: Querying forensic state for ${node.id}`);
+            appendTerminalLine("prompt", `query_host_state --host=${node.id}`);
             if (node.status === "analyzed") {
-                appendTerminalLine("success", `State: Collected & Duffed. Memory-MFT discrepancy checks clean.`);
-            } else if (node.status === "compromised") {
-                appendTerminalLine("warning", `State: Compromised via credentials. Memory dump analysis queued.`);
+                appendTerminalLine("success", `[STATE] ${node.id} analyzed successfully. Diffing checks verified.`);
             } else if (node.status === "patient-zero") {
-                appendTerminalLine("danger", `State: Primary exploit endpoint (Patient Zero). 3 critical anomalies detected.`);
+                appendTerminalLine("danger", `[STATE] ${node.id} is Patient Zero. Exploited starting 2026-05-22 12:00:00.`);
+            } else {
+                appendTerminalLine("warning", `[STATE] ${node.id} compromised laterally. Forensic collection pending.`);
             }
         });
 
@@ -329,157 +349,197 @@ function renderGraph(nodes, edges) {
     });
 }
 
-// Append line to terminal
 function appendTerminalLine(type, text) {
     const line = document.createElement("div");
     line.className = "term-line";
+
+    const secureText = document.createTextNode(text);
     
     if (type === "prompt") {
-        line.innerHTML = `<span class="term-prompt">aegis::agent#</span><span class="term-cmd">${text}</span>`;
+        const promptSpan = document.createElement("span");
+        promptSpan.className = "term-prompt";
+        promptSpan.textContent = "aegis::agent# ";
+        const cmdSpan = document.createElement("span");
+        cmdSpan.className = "term-cmd";
+        cmdSpan.appendChild(secureText);
+        line.appendChild(promptSpan);
+        line.appendChild(cmdSpan);
     } else {
-        let colorClass = "term-out";
-        if (type === "warn") colorClass = "term-warning";
-        if (type === "danger") colorClass = "term-danger";
-        if (type === "success") colorClass = "term-success";
-        
-        line.innerHTML = `<span class="${colorClass}">${text}</span>`;
+        const span = document.createElement("span");
+        let cls = "term-out";
+        if (type === "warn") cls = "term-warning";
+        if (type === "danger") cls = "term-danger";
+        if (type === "success") cls = "term-success";
+        if (type === "info") cls = "term-info";
+        span.className = cls;
+        span.appendChild(secureText);
+        line.appendChild(span);
     }
-    
-    terminalLog.appendChild(line);
+
+    terminalLog.insertBefore(line, terminalCursorLine);
     terminalLog.scrollTop = terminalLog.scrollHeight;
 }
 
-// Update Anomaly Table
 function updateAnomalyTable(anomalies) {
+    const emptyRow = document.getElementById("anomaly-empty-row");
     if (anomalies.length === 0) {
-        anomalyRows.innerHTML = `
-            <tr>
-                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 2rem;">No process discrepancies detected on current targets.</td>
-            </tr>
-        `;
+        if (emptyRow) emptyRow.style.display = "table-row";
+        anomalyRows.querySelectorAll("tr:not(#anomaly-empty-row)").forEach(tr => tr.remove());
+        anomalyCount.textContent = "0 findings";
         return;
     }
+
+    if (emptyRow) emptyRow.style.display = "none";
     
-    anomalyRows.innerHTML = anomalies.map(a => `
-        <tr>
-            <td style="font-family: 'JetBrains Mono', monospace; color: var(--primary);">${a.pid}</td>
-            <td style="font-weight: 600; color: var(--text-highlight);">${a.name}</td>
-            <td><span class="badge badge-critical">${a.severity}</span></td>
-            <td style="font-size: 0.8rem; color: var(--text-main);">${a.finding}</td>
-        </tr>
-    `).join("");
+    // Clear old rows
+    anomalyRows.querySelectorAll("tr:not(#anomaly-empty-row)").forEach(tr => tr.remove());
+
+    anomalies.forEach(a => {
+        const tr = document.createElement("tr");
+        
+        const tdPid = document.createElement("td");
+        tdPid.style.fontFamily = "'JetBrains Mono', monospace";
+        tdPid.style.color = "var(--primary)";
+        tdPid.textContent = a.pid;
+        
+        const tdName = document.createElement("td");
+        tdName.style.fontWeight = "600";
+        tdName.style.color = "var(--text-highlight)";
+        tdName.textContent = a.name;
+
+        const tdSev = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = "badge badge-critical";
+        badge.textContent = a.severity;
+        tdSev.appendChild(badge);
+
+        const tdFind = document.createElement("td");
+        tdFind.style.fontSize = "0.78rem";
+        tdFind.textContent = a.finding;
+
+        tr.appendChild(tdPid);
+        tr.appendChild(tdName);
+        tr.appendChild(tdSev);
+        tr.appendChild(tdFind);
+        
+        anomalyRows.appendChild(tr);
+    });
+
+    anomalyCount.textContent = `${anomalies.length} findings`;
 }
 
-// Perform a single step of the simulation
+function updateProgressPips(stepVal) {
+    document.querySelectorAll(".step-pip").forEach((pip, idx) => {
+        pip.className = "step-pip";
+        if (idx < stepVal) {
+            pip.classList.add("done");
+        }
+        if (idx === stepVal) {
+            pip.classList.add("active");
+            if (stepVal >= 5) {
+                pip.className = "step-pip breached";
+            }
+        }
+    });
+}
+
 function executeSimulationStep() {
     if (currentStep >= MOCK_STEPS_DATA.length - 1) {
-        // Simulation finished, circuit breaker triggered
         showExecutiveReport();
-        clearInterval(autoSimulationInterval);
+        stopSimulation();
         return;
     }
 
     currentStep++;
     const stepData = MOCK_STEPS_DATA[currentStep];
 
-    // 1. Write terminal outputs
     stepData.logs.forEach(log => {
         appendTerminalLine(log.type, log.text);
     });
 
-    // 2. Update Discrepancy Table
     updateAnomalyTable(stepData.anomalies);
-
-    // 3. Render BFS SVG Graph
     renderGraph(stepData.nodes, stepData.edges);
 
-    // 4. Update HUD counters
     const stepVal = currentStep + 1;
     stepCounter.textContent = `${stepVal} / 5`;
-    compCount.textContent = stepData.nodes.filter(n => n.status !== "analyzed").length + stepData.nodes.filter(n => n.status === "analyzed").length;
     
-    // Update meter bar percentage
+    // Update headers and pips
+    const totalComp = stepData.nodes.filter(n => n.status === "compromised" || n.status === "patient-zero").length;
+    const totalAnal = stepData.nodes.filter(n => n.status === "analyzed").length;
+    compCount.textContent = totalComp;
+    analyzedCount.textContent = totalAnal;
+
+    updateProgressPips(currentStep);
+
     const percent = Math.min((stepVal / 5) * 100, 100);
     cbMeter.style.width = `${percent}%`;
 
-    // Visual changes if hitting the limit
     if (stepVal >= 5) {
         cbMeter.className = "hud-meter-bar danger";
         cbStatus.textContent = "HALTED";
         cbStatus.style.color = "var(--danger)";
         cbStatus.style.background = "var(--danger-glow)";
-        document.getElementById("system-status").className = "status-badge";
-        document.getElementById("system-status").style.borderColor = "var(--danger)";
-        document.getElementById("system-status").style.color = "var(--danger)";
-        document.getElementById("system-status").style.boxShadow = "0 0 10px var(--danger-glow)";
+        const badge = document.getElementById("system-status");
+        badge.style.borderColor = "var(--danger)";
+        badge.style.color = "var(--danger)";
+        badge.style.boxShadow = "0 0 10px var(--danger-glow)";
         document.getElementById("status-text").textContent = "SIFT Workstation: Circuit Broken";
-    } else {
-        cbMeter.className = "hud-meter-bar";
-        cbStatus.textContent = "ACTIVE";
-        cbStatus.style.color = "var(--success)";
-        cbStatus.style.background = "var(--success-glow)";
-        document.getElementById("system-status").className = "status-badge";
-        document.getElementById("system-status").style.borderColor = "var(--success)";
-        document.getElementById("system-status").style.color = "var(--success)";
-        document.getElementById("system-status").style.boxShadow = "0 0 10px var(--success-glow)";
-        document.getElementById("status-text").textContent = "SIFT Workstation: Connected";
     }
 }
 
-// Show final MD report in Modal
 function showExecutiveReport() {
     modalReportText.textContent = EXECUTIVE_REPORT_MD;
     reportModal.classList.add("active");
 }
 
-// Reset Simulation
-function resetSimulation() {
-    currentStep = -1;
+function stopSimulation() {
     clearInterval(autoSimulationInterval);
-    terminalLog.innerHTML = `
-        <div class="term-line">
-            <span class="term-prompt">aegis::root#</span>
-            <span class="term-cmd">systemctl status aegis-mcp-server</span>
-        </div>
-        <div class="term-line">
-            <span class="term-out term-success">Aegis Model Context Protocol Server active and listening on port 8000.</span>
-        </div>
-        <div class="term-line">
-            <span class="term-prompt">aegis::root#</span>
-            <span class="term-cmd">_</span>
-        </div>
-    `;
+    autoSimulationInterval = null;
+    runBtn.disabled = false;
+    runBtn.classList.remove("running");
+    stepBtn.disabled = false;
+}
+
+function resetSimulation() {
+    stopSimulation();
+    currentStep = -1;
+    
+    // Clear terminal log except first 3 lines
+    const lines = terminalLog.querySelectorAll(".term-line");
+    lines.forEach((l, idx) => {
+        if (idx >= 3 && l.id !== "terminal-cursor-line") l.remove();
+    });
+
     updateAnomalyTable([]);
     renderGraph([], []);
+    updateProgressPips(-1);
+    
     stepCounter.textContent = "0 / 5";
-    compCount.textContent = "1";
+    compCount.textContent = "—";
+    analyzedCount.textContent = "—";
     cbMeter.style.width = "0%";
     cbMeter.className = "hud-meter-bar";
-    cbStatus.textContent = "ACTIVE";
+    cbStatus.textContent = "ARMED";
     cbStatus.style.color = "var(--success)";
     cbStatus.style.background = "var(--success-glow)";
-    
-    document.getElementById("system-status").className = "status-badge";
-    document.getElementById("system-status").removeAttribute("style");
+
+    const badge = document.getElementById("system-status");
+    badge.removeAttribute("style");
     document.getElementById("status-text").textContent = "SIFT Workstation: Connected";
 }
 
-// Event Listeners
 runBtn.addEventListener("click", () => {
     resetSimulation();
-    appendTerminalLine("prompt", "deploy_aegis_agent --patient-zero=host0 --ttl=5");
-    appendTerminalLine("info", "Starting autonomous incident response graph workflow...");
+    runBtn.disabled = true;
+    runBtn.classList.add("running");
+    stepBtn.disabled = true;
     
-    // Run step-by-step automatically every 2.5s
     executeSimulationStep();
-    autoSimulationInterval = setInterval(executeSimulationStep, 2500);
+    autoSimulationInterval = setInterval(executeSimulationStep, 2000);
 });
 
 stepBtn.addEventListener("click", () => {
-    clearInterval(autoSimulationInterval);
-    if (currentStep === -1) {
-        appendTerminalLine("prompt", "deploy_aegis_agent --step-by-step");
-    }
+    stopSimulation();
     executeSimulationStep();
 });
 
@@ -495,10 +555,15 @@ window.addEventListener("click", (e) => {
     }
 });
 
-// Initial layout rendering (blank graph)
+// Window resize rendering
 window.addEventListener("resize", () => {
     if (currentStep >= 0) {
         const stepData = MOCK_STEPS_DATA[currentStep];
         renderGraph(stepData.nodes, stepData.edges);
+    } else {
+        renderGraph([], []);
     }
 });
+
+// Load empty graph on startup
+renderGraph([], []);
