@@ -11,7 +11,7 @@ Get the entire threat hunting simulation and local environment running in 30 sec
 
 ```bash
 # 1. Clone & Install Dependencies
-git clone https://github.com/suzaykid/evil-dead.git
+git clone https://github.com/seeramsujay/evil-dead.git
 cd evil-dead
 pip install -r requirements.txt
 
