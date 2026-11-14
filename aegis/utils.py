@@ -1,10 +1,11 @@
-import subprocess
-import shutil
-import os
 import json
 import logging
+import os
+import shutil
+import subprocess
+from typing import Any
+
 import jc
-from typing import List, Dict, Any, Optional
 
 logger = logging.getLogger("aegis.utils")
 
@@ -15,20 +16,79 @@ AEGIS_MOCK = os.environ.get("AEGIS_MOCK", "1") == "1"
 MOCK_DATA = {
     "volatility": {
         "windows.pslist": [
-            {"PID": 4, "PPID": 0, "ImageFileName": "System", "CreateTime": "2026-05-22 10:00:00.000000"},
-            {"PID": 120, "PPID": 4, "ImageFileName": "smss.exe", "CreateTime": "2026-05-22 10:00:05.000000"},
-            {"PID": 524, "PPID": 120, "ImageFileName": "wininit.exe", "CreateTime": "2026-05-22 10:00:10.000000"},
-            {"PID": 600, "PPID": 524, "ImageFileName": "services.exe", "CreateTime": "2026-05-22 10:00:11.000000"},
-            {"PID": 612, "PPID": 524, "ImageFileName": "lsass.exe", "CreateTime": "2026-05-22 10:00:12.000000"},
-            {"PID": 1024, "PPID": 600, "ImageFileName": "svchost.exe", "CreateTime": "2026-05-22 10:00:15.000000"},
-            {"PID": 2048, "PPID": 600, "ImageFileName": "svchost.exe", "CreateTime": "2026-05-22 12:15:30.000000"}, # Normal svchost
-            {"PID": 4321, "PPID": 600, "ImageFileName": "svchost.exe", "CreateTime": "2026-05-22 14:32:00.000000"}, # Suspicious (hollowed, spawned late)
-            {"PID": 9999, "PPID": 1024, "ImageFileName": "backdoor.exe", "CreateTime": "2026-05-22 14:35:00.000000"}, # Suspicious (no file on disk)
+            {
+                "PID": 4,
+                "PPID": 0,
+                "ImageFileName": "System",
+                "CreateTime": "2026-05-22 10:00:00.000000",
+            },
+            {
+                "PID": 120,
+                "PPID": 4,
+                "ImageFileName": "smss.exe",
+                "CreateTime": "2026-05-22 10:00:05.000000",
+            },
+            {
+                "PID": 524,
+                "PPID": 120,
+                "ImageFileName": "wininit.exe",
+                "CreateTime": "2026-05-22 10:00:10.000000",
+            },
+            {
+                "PID": 600,
+                "PPID": 524,
+                "ImageFileName": "services.exe",
+                "CreateTime": "2026-05-22 10:00:11.000000",
+            },
+            {
+                "PID": 612,
+                "PPID": 524,
+                "ImageFileName": "lsass.exe",
+                "CreateTime": "2026-05-22 10:00:12.000000",
+            },
+            {
+                "PID": 1024,
+                "PPID": 600,
+                "ImageFileName": "svchost.exe",
+                "CreateTime": "2026-05-22 10:00:15.000000",
+            },
+            {
+                "PID": 2048,
+                "PPID": 600,
+                "ImageFileName": "svchost.exe",
+                "CreateTime": "2026-05-22 12:15:30.000000",
+            },  # Normal svchost
+            {
+                "PID": 4321,
+                "PPID": 600,
+                "ImageFileName": "svchost.exe",
+                "CreateTime": "2026-05-22 14:32:00.000000",
+            },  # Suspicious (hollowed, spawned late)
+            {
+                "PID": 9999,
+                "PPID": 1024,
+                "ImageFileName": "backdoor.exe",
+                "CreateTime": "2026-05-22 14:35:00.000000",
+            },  # Suspicious (no file on disk)
         ],
         "windows.netscan": [
-            {"PID": 4321, "LocalAddr": "192.168.1.50", "LocalPort": 49152, "ForeignAddr": "10.0.0.99", "ForeignPort": 4444, "State": "ESTABLISHED"},
-            {"PID": 9999, "LocalAddr": "192.168.1.50", "LocalPort": 50000, "ForeignAddr": "10.0.0.99", "ForeignPort": 4445, "State": "ESTABLISHED"}
-        ]
+            {
+                "PID": 4321,
+                "LocalAddr": "192.168.1.50",
+                "LocalPort": 49152,
+                "ForeignAddr": "10.0.0.99",
+                "ForeignPort": 4444,
+                "State": "ESTABLISHED",
+            },
+            {
+                "PID": 9999,
+                "LocalAddr": "192.168.1.50",
+                "LocalPort": 50000,
+                "ForeignAddr": "10.0.0.99",
+                "ForeignPort": 4445,
+                "State": "ESTABLISHED",
+            },
+        ],
     },
     "log2timeline": [
         "datetime,source,source_long,message\n"
@@ -38,10 +98,13 @@ MOCK_DATA = {
         "2026-05-22 12:15:30,MFT,MFT Record,File: C:\\Windows\\System32\\svchost.exe was modified\n"
         # Notice there is no MFT record for C:\Windows\System32\svchost.exe around 14:32:00, or it's missing entirely!
         # And C:\Windows\System32\backdoor.exe is missing from MFT records entirely!
-    ]
+    ],
 }
 
-def safe_execute_command(command: List[str], parser_name: Optional[str] = None) -> List[Dict[str, Any]]:
+
+def safe_execute_command(
+    command: list[str], parser_name: str | None = None
+) -> list[dict[str, Any]]:
     """
     Executes a forensic CLI tool with absolute evidence integrity:
     1. Enforces shell=False.
@@ -56,9 +119,13 @@ def safe_execute_command(command: List[str], parser_name: Optional[str] = None) 
     binary_path = shutil.which(binary_name)
 
     # Mock only if binary is missing OR (AEGIS_MOCK is enabled AND it's a forensic binary)
-    is_forensic_tool = any(tool in binary_name for tool in ["volatility", "vol", "log2timeline", "psort"])
+    is_forensic_tool = any(
+        tool in binary_name for tool in ["volatility", "vol", "log2timeline", "psort"]
+    )
     if not binary_path or (AEGIS_MOCK and is_forensic_tool):
-        logger.warning(f"Using mock fallback for command '{binary_name}' (missing binary or mock mode enabled).")
+        logger.warning(
+            f"Using mock fallback for command '{binary_name}' (missing binary or mock mode enabled)."
+        )
         return _get_mock_output(command, parser_name)
 
     # Execute the command securely (shell=False)
@@ -69,7 +136,7 @@ def safe_execute_command(command: List[str], parser_name: Optional[str] = None) 
             stderr=subprocess.PIPE,
             text=True,
             shell=False,
-            check=True
+            check=True,
         )
     except subprocess.CalledProcessError as e:
         logger.error(f"Command execution failed: {e.stderr}")
@@ -94,7 +161,7 @@ def safe_execute_command(command: List[str], parser_name: Optional[str] = None) 
         except Exception as e:
             logger.error(f"Failed to parse stdout using jc parser '{parser_name}': {e}")
             raise RuntimeError(f"JSON normalization error: {e}") from e
-    
+
     # Try parsing as native JSON first if no parser is specified
     try:
         parsed_json = json.loads(stdout_data)
@@ -103,9 +170,14 @@ def safe_execute_command(command: List[str], parser_name: Optional[str] = None) 
         return [parsed_json]
     except json.JSONDecodeError:
         # If not JSON and no parser, return raw lines in a structured format
-        return [{"line": line.strip()} for line in stdout_data.splitlines() if line.strip()]
+        return [
+            {"line": line.strip()} for line in stdout_data.splitlines() if line.strip()
+        ]
 
-def _get_mock_output(command: List[str], parser_name: Optional[str] = None) -> List[Dict[str, Any]]:
+
+def _get_mock_output(
+    command: list[str], parser_name: str | None = None
+) -> list[dict[str, Any]]:
     """
     Returns mock forensic data based on the command.
     """
@@ -118,8 +190,10 @@ def _get_mock_output(command: List[str], parser_name: Optional[str] = None) -> L
             if "windows." in arg:
                 plugin = arg
                 break
-        
-        mock_list = MOCK_DATA["volatility"].get(plugin, MOCK_DATA["volatility"]["windows.pslist"])
+
+        mock_list = MOCK_DATA["volatility"].get(
+            plugin, MOCK_DATA["volatility"]["windows.pslist"]
+        )
         return mock_list
 
     elif "log2timeline" in binary_name:
@@ -138,9 +212,11 @@ def _get_mock_output(command: List[str], parser_name: Optional[str] = None) -> L
     # General fallback
     return [{"status": "mocked", "command": command}]
 
+
 # --- Session Caching for Context Window Protection ---
 
 CACHE_DIR = "/home/suzaykid/Projects/evil-dead/cache"
+
 
 def save_to_cache(session_id: str, key: str, data: Any) -> str:
     """
@@ -152,6 +228,7 @@ def save_to_cache(session_id: str, key: str, data: Any) -> str:
         json.dump(data, f, indent=2)
     return file_path
 
+
 def load_from_cache(session_id: str, key: str) -> Any:
     """
     Loads forensic data from the local JSON cache file.
@@ -162,4 +239,3 @@ def load_from_cache(session_id: str, key: str) -> Any:
         return None
     with open(file_path, "r") as f:
         return json.load(f)
-
