@@ -1,79 +1,89 @@
-# Project Aegis: Autonomous DFIR Threat Hunting Engine
-**Version 1.0.0** · SANS Find Evil! Hackathon · 2026
+<p align="center">
+  <img src="assets/logo.svg" alt="Project Aegis Logo" width="220" />
+</p>
 
-Project Aegis is a state-of-the-art, autonomous Digital Forensics and Incident Response (DFIR) agent built for the SANS SIFT Workstation. It bridges the speed gap between offensive AI and human incident responders by automating triage, mapping lateral movement propagation, and detecting memory process anomalies—all while securing evidence integrity and avoiding LLM context collapse.
+<h1 align="center">Project Aegis (Evil-Dead)</h1>
+
+<p align="center">
+  <strong>Autonomous SIFT Digital Forensics and Incident Response (DFIR) Copilot.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Platform-SANS_SIFT-003366.svg?style=flat-square" alt="SANS SIFT">
+  <img src="https://img.shields.io/badge/Orchestrator-LangGraph-FF6F00.svg?style=flat-square" alt="LangGraph">
+  <img src="https://img.shields.io/badge/Forensics-Volatility_%7C_MFT-EF4444.svg?style=flat-square" alt="Forensics">
+  <img src="https://img.shields.io/badge/UI-Vanilla_JS_Dashboard-F7DF1E.svg?style=flat-square" alt="Dashboard">
+  <a href="future.md"><img src="https://img.shields.io/badge/roadmap-future.md-blueviolet.svg?style=flat-square" alt="Roadmap"></a>
+</p>
 
 ---
 
-## 🚀 30-Second Quick Start
+## ⚡ Overview & Problem Statement
 
-Get the entire threat hunting simulation and local environment running in 30 seconds:
+**Project Aegis** is an autonomous, reliable AI copilot for Digital Forensics and Incident Response (DFIR) analysts operating inside a SANS SIFT forensic workstation environment.
 
-```bash
-# 1. Clone & Install Dependencies
-git clone https://github.com/seeramsujay/evil-dead.git
-cd evil-dead
-pip install -r requirements.txt
+### 🛡️ Safety & Reliability Principles
+- **No Direct Shell Injections**: All forensic commands (`volatility`, `log2timeline`) are executed strictly via `subprocess.run(shell=False)` with argument arrays to prevent shell escaping or command injections.
+- **Context Protection**: Huge raw log text walls are piped through Python's `jc` (JSON Convert) library to convert CLI stdout into structured JSON, which is then cached locally. Only paths and condensed metadata enter the LLM context.
+- **State Safety**: LangGraph-controlled execution enforces an immutable step counter. If execution cycles hit `MAX_STEPS` (5), a **TTL Circuit Breaker** triggers, halting analysis to prevent loops and outputting a compiled markdown report.
 
-# 2. Start the Forensic Dashboard & Console
-python3 -m http.server -d dashboard/ 8000
-# ➜ Open http://localhost:8000 in your browser and click "Deploy Agent"!
+During incidents, responders are overwhelmed by data volume, and LLMs hallucinate when interpreting raw text logs. Aegis delegates heavy parsing and anomaly search to deterministic Python logic, freeing the LLM to write high-level executive reports based on clean, structured findings.
 
-# 3. (Optional) Run the FastMCP Server Membrane
-mcp run aegis/mcp_server.py
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    User[Forensic Analyst] --> Dashboard[Vanilla JS Forensic Dashboard]
+    Dashboard --> Orchestrator[LangGraph State Machine]
+    
+    subgraph Deterministic Forensic Engines
+        Orchestrator --> MemDiskDiff[Memory vs Disk MFT Diffing]
+        Orchestrator --> LateralBFS[Breadth-First Search Lateral Traversal]
+        Orchestrator --> SIFTExec[Safe Subprocess SIFT Executor]
+    end
+    
+    SIFTExec --> Volatility[Volatility Memory Analysis]
+    SIFTExec --> Timeline[Log2Timeline / Plaso Engine]
+    
+    MemDiskDiff --> EvidenceAggregator[Evidence Aggregator & Cache]
+    LateralBFS --> EvidenceAggregator
+    Timeline --> EvidenceAggregator
+    
+    EvidenceAggregator --> CircuitBreaker{TTL Step Breaker}
+    CircuitBreaker -->|Step < MAX| LLMReport[Executive Summary Generator]
+    CircuitBreaker -->|Step >= MAX| SafeAbort[Safe Abort & Incident Dump]
 ```
 
 ---
 
-## AI READING INSTRUCTION
+## 🔍 Key Forensic Engines
 
-Read `[SPEC]` and `[BUG]` blocks for authoritative facts and system commands.
-Read `[NOTE]` only if additional context or design history is needed.
-`[?]` blocks are unverified claims.
-
----
-
-## 1. Core Architectural Concepts
-
-**[SPEC]**
-- **Evidence Integrity**: SIFT command-line tools (`volatility`, `log2timeline`) are executed strictly via `subprocess.run(shell=False)` with argument arrays to prevent shell escaping or command injections.
-- **Context Protection**: Huge raw log text walls are piped through Python's `jc` (JSON Convert) library to convert CLI stdout into structured JSON, which is then cached locally. Only paths and condensed metadata enter the LLM context.
-- **State safety**: LangGraph-controlled execution enforces an immutable step counter. If execution cycles hit `MAX_STEPS` (5), a **TTL Circuit Breaker** triggers, halting analysis to prevent loops and outputting a compiled markdown report.
-
-**[NOTE]**
-During incidents, responders are overwhelmed by data volume, and LLMs hallucinate when interpreting raw text logs. Aegis delegates the heavy parsing and anomaly search to deterministic Python logic, freeing the LLM to write high-level executive reports based on clean, structured findings.
-
----
-
-## 2. Key Forensic Engines
-
-**[SPEC]**
 - **Deterministic Discrepancy Diffing (`aegis/diffing.py`)**:
   - Compares volatile memory processes (`windows.pslist`) with filesystem Master File Table (`MFT`) disk timestamps.
   - Flags processes running in memory that lack disk MFT creation records or have start times predating disk creation (revealing process hollowing, reflective loading, or memory-only payloads).
 - **Forensic Flood-Fill BFS (`aegis/traversal.py`)**:
   - Performs a Breadth-First Search (BFS) over system authentication and network log files starting at "Patient Zero".
-  - Automatically maps the lateral movement blast radius, validating chronological propagation paths (e.g. host A compromise must happen before host B).
+  - Automatically maps lateral movement blast radiuses, validating chronological propagation paths.
 - **LangGraph Stateful Orchestrator (`aegis/orchestrator.py`)**:
-  - Models the triage, collection, analysis, and routing phases of DFIR as a state graph.
-  - Implements the conditional circuit-breaker logic based on step count.
+  - Models triage, collection, analysis, and routing phases of DFIR as a state graph.
+  - Implements conditional circuit-breaker logic based on step count.
 
 ---
 
-## 3. Interactive Web Dashboard
+## 🖥️ Interactive Web Dashboard
 
-**[SPEC]**
 Located in the `dashboard/` directory. Zero frameworks or complex bundlers required—built entirely on HTML5, CSS3, and Vanilla JS.
 - **Live Agent Simulation**: Watch the LangGraph state machine trace compromised hosts, query targets, and execute secure SIFT commands.
 - **BFS Lateral Movement Map**: SVG-rendered network tree highlighting compromise nodes, clean analyzed endpoints, and active traversal paths.
 - **Process Discrepancies Panel**: Tabulates memory-vs-disk MFT discrepancies.
-- **Circuit Breaker HUD**: Displays step counter meter. Flashes red and alerts the responder with an Executive Markdown report modal when the execution limit is hit.
+- **Circuit Breaker HUD**: Displays step counter meter. Flashes red and alerts responder with an Executive Markdown report modal when the execution limit is hit.
 
 ---
 
-## 4. Verification & Testing
+## 🧪 Verification & Testing
 
-**[SPEC]**
 Verify the integrity of all codebases, safety membranes, and deterministic diffing models via the pre-built `pytest` suite:
 
 ```bash
@@ -93,24 +103,12 @@ PYTHONPATH=. pytest -v tests/test_aegis.py
 
 ---
 
-## 5. Resolved Bugs & Troubleshooting
+## 🔮 Engineering Roadmap
 
-**[BUG] Missing typing import in diffing**
-- **Symptom**: pytest fails during test collection with `NameError: name 'Optional' is not defined`.
-- **Cause**: Misplaced `from typing import Optional` declaration at the very bottom of `aegis/diffing.py`.
-- **Fix**: Moved import statement to the top of `aegis/diffing.py` and removed the stray block from the bottom.
-
-**[BUG] Shell safety test mocked assertion**
-- **Symptom**: `test_safe_execute_command_shell_safety` fails with KeyError when mocking is enabled.
-- **Cause**: The test expected a mocked response for standard commands like `echo` when `AEGIS_MOCK=1` was active.
-- **Fix**: Updated mocking checks to only mock forensic commands (`volatility`, `log2timeline`), allowing standard utilities to execute and verify that shell expansion did not occur.
-
-**[BUG] LangGraph TTL step counter string match**
-- **Symptom**: `test_langgraph_ttl_circuit_breaker` fails to find "TTL Circuit Breaker" in final report.
-- **Cause**: The compiler generated the text "Time-To-Live (TTL) Circuit Breaker", but the assertion was checking for exact string "TTL Circuit Breaker" without parenthesis.
-- **Fix**: Split assertion into separate tests for "TTL" and "Circuit Breaker" keywords in the report.
+To explore planned features including Volatility 3 kernel symbol extraction, DuckDB analytical super-timelines, and GNN lateral threat hunting, read [future.md](future.md).
 
 ---
 
-## Changelog
-- **v1.0.0** (2026-05-22): Initial release of Project Aegis Core & Visual Incident Console. All tests PASSED.
+## 📄 License
+
+This project is licensed under the MIT License.
